@@ -1,0 +1,4 @@
+.storybook/public/
+coverage/
+storybook-static/
+src/generated/

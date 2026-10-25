@@ -1,0 +1,74 @@
+name: Quality
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NEXT_TELEMETRY_DISABLED: "1"
+  STORYBOOK_DISABLE_TELEMETRY: "1"
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run db:generate
+      - run: npx playwright install --with-deps chromium
+      - run: npm run format:check
+      - run: npm run check
+      - run: npm run docs:check
+      - run: npm run test:stories:coverage
+      - run: npm run storybook:build
+      - run: npm run test:e2e
+      - name: Save coverage, Storybook, and failure reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-reports
+          path: |
+            coverage/
+            storybook-static/
+            playwright-report/
+            test-results/
+          retention-days: 14
+
+  visual:
+    # Reviewed baselines were generated on macOS with pinned Chromium/fonts.
+    # Linux rendering needs its own explicitly reviewed platform baselines.
+    runs-on: macos-14
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install chromium
+      - run: npm run storybook:build
+      - run: npm run test:visual
+      - name: Save visual report and differences
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-reports
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14

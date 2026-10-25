@@ -1,0 +1,29 @@
+.story-stage {
+  padding: 24px;
+  max-width: 1248px;
+  margin: 0 auto;
+}
+.story-stage.story-fullscreen {
+  padding: 0;
+  max-width: none;
+}
+.story-panel {
+  max-width: 520px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+}
+.story-stack {
+  display: grid;
+  gap: 20px;
+}
+.story-inspector {
+  min-height: 900px;
+  display: flex;
+  justify-content: flex-end;
+}
+.story-inspector .task-inspector {
+  position: relative;
+  height: 900px;
+}

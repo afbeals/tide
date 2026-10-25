@@ -1,0 +1,29 @@
+generator client {
+  provider = "prisma-client"
+  output = "../src/generated/prisma"
+}
+datasource db {
+  provider = "sqlite"
+}
+model Record {
+  id String @id
+  kind String
+  version Int @default(1)
+  data Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([kind])
+}
+model Activity {
+  id String @id
+  recordId String
+  action String
+  detail String
+  createdAt DateTime @default(now())
+  @@index([recordId, createdAt])
+}
+model Operation {
+  id String @id
+  result Json
+  createdAt DateTime @default(now())
+}
