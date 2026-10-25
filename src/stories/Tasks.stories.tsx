@@ -145,6 +145,7 @@ export const List: Story = {
 };
 export const Board: Story = {
   args: { mode: "board" },
+  beforeEach: () => resetWorkspace({ writeDelay: 250 }),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.selectOptions(
@@ -155,7 +156,7 @@ export const Board: Story = {
     );
     const heading = canvas.getByRole("heading", { name: /In progress/ });
     await expect(
-      within(heading.closest("section")!).getByRole("button", {
+      await within(heading.closest("section")!).findByRole("button", {
         name: "Prepare team presentation",
       }),
     ).toBeVisible();
