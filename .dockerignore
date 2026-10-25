@@ -1,0 +1,16 @@
+node_modules
+.next
+.git
+data
+docker-data
+.env*
+!.env.example
+test-results
+playwright-report
+*.tsbuildinfo
+
+coverage
+storybook-static
+.storybook
+.github
+tests/visual

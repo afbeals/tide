@@ -1,0 +1,50 @@
+.fc {
+  --fc-border-color: var(--border);
+  --fc-page-bg-color: var(--panel);
+  --fc-neutral-bg-color: var(--canvas);
+  --fc-today-bg-color: transparent;
+  --fc-now-indicator-color: var(--amber);
+  font-size: 11px;
+}
+.fc a {
+  color: var(--text);
+}
+.fc .fc-timegrid-slot {
+  height: 38px;
+}
+.fc .fc-timegrid-slot-label {
+  font-size: 10px;
+  color: var(--muted);
+}
+.fc .fc-timegrid-axis {
+  width: 45px;
+}
+.fc .fc-col-header-cell-cushion {
+  font-weight: 400;
+  color: var(--muted);
+}
+.fc .fc-event {
+  font-size: 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.fc .fc-event-title {
+  font-weight: 500;
+}
+.fc .fc-event-main {
+  padding: 4px;
+}
+.fc .fc-scrollgrid {
+  border: 0;
+}
+.fc .fc-timegrid-col-events {
+  margin-right: 5px;
+}
+.fc .fc-event-time {
+  font-size: 9px;
+  opacity: 1;
+}
+.fc .fc-bg-event {
+  opacity: 1;
+  color: var(--muted);
+}
