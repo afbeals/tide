@@ -1,5 +1,7 @@
 "use client";
 
+import { createId } from "@/lib/id";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -155,7 +157,7 @@ function Application() {
   const [bulkDay, setBulkDay] = useState(addDays(day, 1));
   const [bulkUndo, setBulkUndo] = useState<string | null>(null);
   const [essentialsCollapsed, setEssentialsCollapsed] = useState(false);
-  const [bulkOperation, setBulkOperation] = useState(() => crypto.randomUUID());
+  const [bulkOperation, setBulkOperation] = useState(() => createId());
   const [bulkError, setBulkError] = useState("");
   const [mobileMenu, setMobileMenu] = useState(false);
   const [routine, setRoutine] = useState<Entity<Routine> | null>(null);
@@ -414,7 +416,7 @@ function Application() {
     setBulkAction(action);
     setBulkDay(addDays(day, 1));
     setBulkError("");
-    setBulkOperation(crypto.randomUUID());
+    setBulkOperation(createId());
   }
   function collection(kind: Kind, label: string) {
     const items = workspace.records
@@ -1179,7 +1181,7 @@ function Application() {
                             void act(
                               () =>
                                 runBulk({
-                                  operationId: crypto.randomUUID(),
+                                  operationId: createId(),
                                   action: "someday",
                                   day: "",
                                   items: tasks
@@ -1310,7 +1312,7 @@ function Application() {
                                       void act(
                                         () =>
                                           runBulk({
-                                            operationId: crypto.randomUUID(),
+                                            operationId: createId(),
                                             action: "move",
                                             items: [
                                               { id: t.id, version: t.version },
@@ -1979,7 +1981,7 @@ function Application() {
                               ...target.data.checklist,
                               ...ref.data.checklist.map((c) => ({
                                 ...c,
-                                id: crypto.randomUUID(),
+                                id: createId(),
                                 done: false,
                               })),
                             ],

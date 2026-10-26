@@ -22,6 +22,8 @@ Use Node 24 and the committed npm lockfile. Run `npm ci`, `npm run db:generate`,
 
 Story tests start their own Vite browser environment. They need no app/Storybook server, Google keys or user database. Screenshot tests start a loopback-only static server on 6007; build Storybook first. E2E owns port 8777. Keep those test ports free.
 
+The production browser suite also visits `http://tide.test:8777`, which Chromium resolves to loopback through a test-only host rule. Its browser origin remains insecure, matching Unraid LAN HTTP. The test verifies that `crypto.randomUUID` is absent, then checks startup, task/checklist creation, copying with a valid operation UUID, and persistence after reload. No machine or router DNS changes are needed.
+
 ## Coverage scope and gates
 
 | Suite | Instrumented source | Lines | Statements | Functions | Branches |
@@ -31,7 +33,7 @@ Story tests start their own Vite browser environment. They need no app/Storybook
 
 These are separate reports, not a whole-application percentage. Component coverage measures isolated story runs; production E2E exercises additional UI paths but is not included in either percentage. The gates were raised after adding recovery, successful saves and failure interactions; they protect the expanded suite. Passing coverage does not individually certify every feature or Figma state.
 
-The current 130 core tests measure 96.15% lines and 90.13% branches; 149 Storybook stories measure 79.71% component lines and 73.11% branches. These replace the earlier 107-test/71-story baseline (92.51% core lines and 50.63% component lines).
+The current 133 core tests measure 96.17% lines and 90.13% branches; 149 Storybook stories measure 79.70% component lines and 73.11% branches. These replace the earlier 107-test/71-story baseline (92.51% core lines and 50.63% component lines).
 
 Open `coverage/core/index.html` or `coverage/components/index.html` after the corresponding command. Adding untested files within the declared scopes lowers coverage. Do not exclude new business logic, weaken gates or add assertions that merely repeat implementation to pass.
 

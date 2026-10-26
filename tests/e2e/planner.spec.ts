@@ -876,3 +876,63 @@ test("creates and edits management records with persisted relationships and sign
       .googleDailyLimit,
   ).toBe(99);
 });
+
+test("loads and persists tasks on plain HTTP without secure-context APIs", async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.goto("http://tide.test:8777/?person=alex");
+  expect(
+    await page.evaluate(() => ({
+      secure: window.isSecureContext,
+      randomUUID: typeof crypto.randomUUID,
+      randomValues: typeof crypto.getRandomValues,
+    })),
+  ).toEqual({
+    secure: false,
+    randomUUID: "undefined",
+    randomValues: "function",
+  });
+  await expect(
+    page.getByRole("heading", { name: "Today", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Add task", exact: true })
+    .first()
+    .click();
+  const dialog = page.getByRole("dialog");
+  await dialog
+    .getByLabel("Task title *", { exact: true })
+    .fill("LAN HTTP task");
+  await dialog
+    .getByRole("button", { name: "Add checklist item", exact: true })
+    .click();
+  await dialog
+    .getByLabel("Checklist item", { exact: true })
+    .fill("Pack a water bottle");
+  await dialog.getByRole("button", { name: "Save", exact: true }).click();
+  const panel = page.getByRole("complementary", {
+    name: "Task details: LAN HTTP task",
+    exact: true,
+  });
+  await expect(panel).toBeVisible();
+  await panel
+    .getByRole("button", { name: "Copy to selected day", exact: true })
+    .click();
+  await expect(page.locator(".toast")).toContainText(
+    "Independent copy added with progress reset",
+  );
+  await page.reload();
+  await expect(panel.getByLabel("Checklist item", { exact: true })).toHaveValue(
+    "Pack a water bottle",
+  );
+  const workspace = await (await page.request.get("/api/workspace")).json();
+  expect(
+    workspace.records.filter(
+      (record: { kind: string; data: { title?: string } }) =>
+        record.kind === "task" && record.data.title === "LAN HTTP task",
+    ),
+  ).toHaveLength(2);
+  expect(errors).toEqual([]);
+});

@@ -10,9 +10,16 @@ const defaultExport = defineConfig({
     baseURL: "http://127.0.0.1:8777",
     trace: "retain-on-failure",
     actionTimeout: 10000,
-    launchOptions: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE
-      ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE }
-      : {},
+    launchOptions: {
+      // A non-localhost origin exercises the same insecure context as Unraid LAN HTTP.
+      args: [
+        "--host-resolver-rules=MAP tide.test 127.0.0.1",
+        "--no-proxy-server",
+      ],
+      ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE
+        ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE }
+        : {}),
+    },
   },
   webServer: {
     command: "node scripts/test-server.mjs",
