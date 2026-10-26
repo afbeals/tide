@@ -25,7 +25,8 @@ COPY --from=builder /app/tsconfig.json ./tsconfig.json
 COPY --from=builder /app/scripts ./scripts
 COPY --from=builder /app/package.json ./package.json
 COPY docker/entrypoint.sh ./docker/entrypoint.sh
-RUN chmod +x docker/entrypoint.sh && mkdir -p /app/data
+# Also handle existing Windows working copies that have not refreshed Git attributes.
+RUN sed -i 's/\r$//' docker/entrypoint.sh && chmod +x docker/entrypoint.sh && mkdir -p /app/data
 EXPOSE 8776
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s CMD node -e "fetch('http://127.0.0.1:8776/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 ENTRYPOINT ["./docker/entrypoint.sh"]

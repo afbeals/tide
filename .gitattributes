@@ -1,0 +1,2 @@
+# Shell entrypoints must use Linux line endings, including on Windows checkouts.
+*.sh text eol=lf
