@@ -1,4 +1,4 @@
-import { ComponentProps } from "react";
+import type { ComponentProps } from "react";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 import { http, HttpResponse } from "msw";
@@ -13,9 +13,11 @@ import {
   editMockWorkspace,
   getMockWorkspace,
   record,
+  resetWorkspace,
 } from "./fixtures";
 import { recordsOf } from "../lib/types";
 import type { Routine } from "../lib/types";
+
 function Planner(props: ComponentProps<typeof PlanningWizard>) {
   return (
     <WorkspaceProvider>
@@ -61,6 +63,7 @@ export const ReviewCapacity: Story = {
     ),
 };
 export const SavePlan: Story = {
+  beforeEach: () => resetWorkspace({ workspaceDelay: 250 }),
   play: async ({ args }) => {
     const dialog = within(
       await within(document.body).findByRole("dialog", {
@@ -70,7 +73,7 @@ export const SavePlan: Story = {
     for (let i = 0; i < 3; i++)
       await userEvent.click(dialog.getByRole("button", { name: "Continue" }));
     await userEvent.click(dialog.getByRole("button", { name: "Save plan" }));
-    await expect(args.onClose).toHaveBeenCalled();
+    await waitFor(() => expect(args.onClose).toHaveBeenCalled());
   },
 };
 const body = () => within(document.body);
@@ -207,6 +210,7 @@ export const PlanServerFailure: Story = {
 };
 const routineCall = fn();
 export const ApplyRoutineFromPlanner: Story = {
+  beforeEach: () => resetWorkspace({ workspaceDelay: 250 }),
   parameters: {
     msw: {
       handlers: [
@@ -242,7 +246,9 @@ export const ApplyRoutineFromPlanner: Story = {
         }),
       ),
     );
-    await userEvent.click(body().getByRole("button", { name: "Continue" }));
+    await userEvent.click(
+      await body().findByRole("button", { name: "Continue" }),
+    );
     await expect(
       body().getByText("Clear surfaces", { exact: true }),
     ).toBeVisible();

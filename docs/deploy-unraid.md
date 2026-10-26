@@ -34,3 +34,17 @@ Startup resolves the active restored generation, makes a safety backup of an exi
 For upgrades, create/download a full backup, select the tested new version and recreate the container while retaining the volume. For rollback, choose the previous image and restore a compatible pre-upgrade backup when schema changes require it. Image rollback alone does not downgrade database migrations. Do not delete the volume to repair a startup error.
 
 Docker validation requires an available Docker daemon. The implementation environment's actual verification status is recorded in verification.md.
+
+## Windows: entrypoint reports "no such file or directory"
+
+If `npm run docker:test` reports `exec ./docker/entrypoint.sh: no such file or directory` after a successful image build, Windows CRLF line endings may have changed the script's interpreter from `/bin/sh` to `/bin/sh\r`. The script exists, but Linux cannot find that interpreter.
+
+The repository enforces LF for shell scripts through `.gitattributes`, and the Dockerfile also removes carriage returns during the image build. After pulling this fix, rebuild the image before testing:
+
+```sh
+npm run docker:build
+npm run docker:tag
+npm run docker:test
+```
+
+Testing uses the version from `package.json`; tagging `latest` alone does not rebuild that image. Keep the existing `docker-data` folder: rebuilding the image does not require deleting the database.

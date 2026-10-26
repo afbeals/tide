@@ -1,4 +1,4 @@
-import { ComponentProps } from "react";
+import type { ComponentProps } from "react";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 import { WorkspaceProvider, useWorkspace } from "../components/workspace";
@@ -13,6 +13,7 @@ import {
   exampleTask,
   getMockWorkspace,
   patchMockTask,
+  resetWorkspace,
 } from "./fixtures";
 
 function Content({
@@ -95,13 +96,16 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 const body = () => within(document.body);
 export const CompleteTask: Story = {
+  beforeEach: () => resetWorkspace({ workspaceDelay: 250 }),
   play: async () => {
     await userEvent.selectOptions(
       await body().findByLabelText("Status"),
       "Done",
     );
-    await waitFor(() => expect(exampleTask().data.status).toBe("Done"));
-    await expect(body().getByLabelText("Status")).toHaveValue("Done");
+    await waitFor(() =>
+      expect(body().getByLabelText("Status")).toHaveValue("Done"),
+    );
+    await expect(exampleTask().data.status).toBe("Done");
   },
 };
 export const ChecklistAndReferences: Story = {

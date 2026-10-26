@@ -2,6 +2,7 @@ import { delay, http, HttpResponse } from "msw";
 import { defaultFilters, settingsDefaults, taskDefaults } from "../lib/types";
 import { newPlan } from "../lib/domain";
 import type { Entity, Task, Workspace } from "../lib/types";
+
 export const demoDay = "2026-10-24";
 const at = "2026-10-24T12:00:00.000Z";
 export function record(
@@ -162,12 +163,19 @@ export function exampleWorkspace(): Workspace {
 let workspace = exampleWorkspace();
 let failWrites = false;
 let writeDelay = 0;
+let workspaceDelay = 0;
 export function resetWorkspace(
-  options: { failWrites?: boolean; writeDelay?: number; empty?: boolean } = {},
+  options: {
+    failWrites?: boolean;
+    writeDelay?: number;
+    workspaceDelay?: number;
+    empty?: boolean;
+  } = {},
 ) {
   workspace = exampleWorkspace();
   failWrites = !!options.failWrites;
   writeDelay = options.writeDelay || 0;
+  workspaceDelay = options.workspaceDelay || 0;
   if (options.empty)
     workspace.records = workspace.records.filter(
       (r) => r.kind === "settings" || r.kind === "person",
@@ -184,7 +192,10 @@ const backup = {
   bytes: 2048,
 };
 export const handlers = [
-  http.get("/api/workspace", () => HttpResponse.json(workspace)),
+  http.get("/api/workspace", async () => {
+    if (workspaceDelay) await delay(workspaceDelay);
+    return HttpResponse.json(workspace);
+  }),
   http.post("/api/records", async ({ request }) => {
     if (writeDelay) await delay(writeDelay);
     if (failWrites)
