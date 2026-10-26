@@ -9,7 +9,9 @@ git switch main
 git pull --ff-only
 npm run docker:build
 npm run docker:test
-# Stop the successful local test with Ctrl+C, then publish:
+# verify running
+docker stop tide-local
+# then publish:
 npm run docker:tag
 npm run docker:push
 ```
