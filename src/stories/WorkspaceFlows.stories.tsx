@@ -186,6 +186,7 @@ export const BulkCopyPreview: Story = {
 const bulkHandler = http.post("/api/bulk", async ({ request }) => {
   const payload = await request.json();
   bulk(payload);
+  await delay(200);
   return HttpResponse.json({ operationId: "operation", ids: [] });
 });
 export const BulkCopyConfirmation: Story = {
@@ -218,7 +219,12 @@ export const BulkCopyConfirmation: Story = {
         }),
       ),
     );
-    await expect(body().queryByRole("dialog")).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(body().queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+    await expect(
+      await body().findByText("Independent copies created"),
+    ).toBeVisible();
   },
 };
 export const BulkFailureRetainsSelection: Story = {
