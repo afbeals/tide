@@ -7,6 +7,12 @@ const env = {
   ...process.env,
   TIDE_DATA_DIR: directory,
   DATABASE_URL: "file:" + path.join(directory, "workspace.db"),
+  // No real provider credentials, including any inherited from a local .env.
+  // Live-mode configuration is exercised only with a fake key and intercepted SDK.
+  TIDE_GOOGLE_MODE: "live",
+  GOOGLE_SERVER_API_KEY: "",
+  GOOGLE_MAPS_BROWSER_KEY: "tide-runtime-browser-test-key",
+  NEXT_PUBLIC_GOOGLE_MAPS_KEY: "",
 };
 for (const args of [
   ["run", "db:deploy"],

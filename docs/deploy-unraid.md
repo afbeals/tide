@@ -18,9 +18,9 @@ npm run docker:push
 
 `docker:push` requires Docker Hub authentication and publishes both the versioned image and `afbeals/tide:latest`. On Unraid, select **Docker → Check for Updates → Update** for Tide after publishing. Scheduled update checks and notifications depend on the Unraid configuration. Keep the existing data-folder mapping when recreating the container.
 
-The build targets `linux/amd64` using Node 24 Debian slim. Native better-sqlite3 may compile from source. If using maps, pass the browser key as a Docker build argument (`NEXT_PUBLIC_GOOGLE_MAPS_KEY`); it is a public restricted browser credential. The `docker:build` script loads `.env` when present and forwards this browser key as the build argument; the server key is supplied only at runtime.
+The build targets `linux/amd64` using Node 24 Debian slim. Native better-sqlite3 may compile from source. Build and publish without Google keys. Both keys are configured only in the running Unraid container. Local development disables Google; `docker:test` also explicitly disables live mode and clears Google keys, without loading local credentials. Automated tests and Storybook use mocks.
 
-For Google Cloud account creation, enabled APIs, key restrictions and validation, follow the [Google setup guide](integrations.md). The browser key is supplied when building the image; the server key is a container environment variable.
+For Google Cloud account creation, enabled APIs, key restrictions and validation, follow the [Google setup guide](integrations.md). On Unraid, add `TIDE_GOOGLE_MODE=live`, `GOOGLE_SERVER_API_KEY` and `GOOGLE_MAPS_BROWSER_KEY` as container environment variables. Apply changes and refresh Tide. Later key changes do not require rebuilding or publishing another image.
 
 Unraid configuration:
 
@@ -32,7 +32,9 @@ Unraid configuration:
 | Volume | `/mnt/user/appdata/tide/data` → `/app/data` read/write |
 | Data root | `TIDE_DATA_DIR=/app/data` |
 | Database | `DATABASE_URL=file:/app/data/workspace.db` initially |
-| Google | `GOOGLE_SERVER_API_KEY` if configured |
+| Google live access | `TIDE_GOOGLE_MODE=live` only in production; disabled when unset |
+| Google server key | `GOOGLE_SERVER_API_KEY` if configured |
+| Google browser key | `GOOGLE_MAPS_BROWSER_KEY` if configured |
 | Optional demo | `TIDE_SEED_DEMO=true` only for an empty workspace |
 
 The included Compose file can build locally or run the published image. Start at `http://<unraid-ip>:8776`. No login or session secret is required. Do not expose this unrestricted shared workspace as a public service without separately designed access controls.

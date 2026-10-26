@@ -9,8 +9,6 @@ FROM base AS builder
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
 ENV DATABASE_URL=file:/tmp/build.db
-ARG NEXT_PUBLIC_GOOGLE_MAPS_KEY
-ENV NEXT_PUBLIC_GOOGLE_MAPS_KEY=$NEXT_PUBLIC_GOOGLE_MAPS_KEY
 RUN npm run build
 FROM base AS runner
 ENV NODE_ENV=production TIDE_DATA_DIR=/app/data DATABASE_URL=file:/app/data/workspace.db NEXT_TELEMETRY_DISABLED=1

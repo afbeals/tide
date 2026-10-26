@@ -12,12 +12,15 @@ import fs from "node:fs";
 import path from "node:path";
 import { temporaryDatabase } from "./helpers/database";
 import { addDays, workspaceDay } from "../src/lib/domain";
+
 const fixture = temporaryDatabase("providers");
 let providers: typeof import("../src/server/providers");
 let store: typeof import("../src/server/store");
 let database: typeof import("../src/server/db");
 const originalKey = process.env.GOOGLE_SERVER_API_KEY;
 const originalMapKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY;
+const originalRuntimeMapKey = process.env.GOOGLE_MAPS_BROWSER_KEY;
+const originalGoogleMode = process.env.TIDE_GOOGLE_MODE;
 const fetchMock = vi.fn<typeof fetch>();
 beforeAll(async () => {
   store = await import("../src/server/store");
@@ -30,6 +33,8 @@ beforeEach(async () => {
   vi.setSystemTime(new Date("2026-10-24T19:00:00Z"));
   process.env.GOOGLE_SERVER_API_KEY = "test-server-key";
   process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY = "test-browser-key";
+  process.env.GOOGLE_MAPS_BROWSER_KEY = "test-runtime-browser-key";
+  process.env.TIDE_GOOGLE_MODE = "live";
   fs.rmSync(path.join(fixture.root, "provider-usage.json"), { force: true });
   database.runtime.requestCache.clear();
   const cfg = (await store.entities()).find((r) => r.kind === "settings")!;
@@ -49,6 +54,8 @@ afterAll(async () => {
   for (const [key, value] of Object.entries({
     GOOGLE_SERVER_API_KEY: originalKey,
     NEXT_PUBLIC_GOOGLE_MAPS_KEY: originalMapKey,
+    GOOGLE_MAPS_BROWSER_KEY: originalRuntimeMapKey,
+    TIDE_GOOGLE_MODE: originalGoogleMode,
   })) {
     if (value === undefined) delete process.env[key];
     else process.env[key] = value;
@@ -61,6 +68,65 @@ const json = (value: unknown) =>
   });
 const travel = { origin: "Home", destination: "Library", travelMode: "DRIVE" };
 describe("external provider boundaries", () => {
+  it.each([undefined, "disabled", "unexpected"])(
+    "blocks live calls and browser key delivery when production access is not explicitly enabled (%s)",
+    async (mode) => {
+      if (mode === undefined) delete process.env.TIDE_GOOGLE_MODE;
+      else process.env.TIDE_GOOGLE_MODE = mode;
+      await expect(providers.places("Library")).rejects.toMatchObject({
+        status: 503,
+      });
+      await expect(providers.placeDetails("library")).rejects.toMatchObject({
+        status: 503,
+      });
+      await expect(providers.route(travel)).rejects.toMatchObject({
+        status: 503,
+      });
+      expect(await providers.providerStatus()).toMatchObject({
+        configured: false,
+        mapConfigured: false,
+        mapsBrowserKey: "",
+        used: 0,
+      });
+      expect(fetchMock).not.toHaveBeenCalled();
+    },
+  );
+  it("blocks live requests and browser keys during local Next development even if live mode was inherited", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    try {
+      await expect(providers.places("Library")).rejects.toMatchObject({
+        status: 503,
+      });
+      expect(await providers.providerStatus()).toMatchObject({
+        configured: false,
+        mapConfigured: false,
+        mapsBrowserKey: "",
+        used: 0,
+      });
+      expect(fetchMock).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+  it("reads the current runtime browser key with a legacy fallback and never exposes the server key", async () => {
+    for (const [current, legacy, expected] of [
+      ["runtime-key", "legacy-key", "runtime-key"],
+      ["rotated-key", "legacy-key", "rotated-key"],
+      ["", "legacy-key", "legacy-key"],
+      ["", "", ""],
+    ]) {
+      process.env.GOOGLE_MAPS_BROWSER_KEY = current;
+      process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY = legacy;
+      expect(await providers.providerStatus()).toEqual({
+        configured: true,
+        mapConfigured: !!expected,
+        mapsBrowserKey: expected,
+        used: 0,
+        limit: 10,
+      });
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
   it("sends Places credentials only in server headers and requests the required fields", async () => {
     fetchMock.mockResolvedValueOnce(
       json({ places: [{ id: "library", formattedAddress: "100 Main St" }] }),
@@ -107,6 +173,7 @@ describe("external provider boundaries", () => {
   it("rejects missing credentials and disabled requests without external calls", async () => {
     delete process.env.GOOGLE_SERVER_API_KEY;
     delete process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY;
+    delete process.env.GOOGLE_MAPS_BROWSER_KEY;
     await expect(providers.places("Library")).rejects.toMatchObject({
       status: 503,
     });

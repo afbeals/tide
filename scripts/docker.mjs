@@ -1,6 +1,5 @@
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
-if (fs.existsSync(".env")) process.loadEnvFile(".env");
 const pkg = JSON.parse(
   fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"),
 );
@@ -24,8 +23,6 @@ switch (process.argv[2]) {
       "--platform",
       "linux/amd64",
       "--load",
-      "--build-arg",
-      `NEXT_PUBLIC_GOOGLE_MAPS_KEY=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || ""}`,
       "-t",
       version,
       ".",
@@ -41,6 +38,14 @@ switch (process.argv[2]) {
       "--rm",
       "--name",
       "tide-local",
+      "--env",
+      "TIDE_GOOGLE_MODE=disabled",
+      "--env",
+      "GOOGLE_SERVER_API_KEY=",
+      "--env",
+      "GOOGLE_MAPS_BROWSER_KEY=",
+      "--env",
+      "NEXT_PUBLIC_GOOGLE_MAPS_KEY=",
       "-p",
       "8776:8776",
       "-v",

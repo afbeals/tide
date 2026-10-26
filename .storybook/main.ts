@@ -1,5 +1,6 @@
 import { fileURLToPath } from "node:url";
 import type { StorybookConfig } from "@storybook/nextjs-vite";
+
 const config: StorybookConfig = {
   stories: ["../src/stories/**/*.stories.tsx"],
   addons: [
@@ -17,8 +18,6 @@ const config: StorybookConfig = {
       resolve: {
         alias: { "@": fileURLToPath(new URL("../src", import.meta.url)) },
       },
-      // Storybook uses fixtures and never loads a real map or account key.
-      define: { "process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY": JSON.stringify("") },
     });
   },
 };

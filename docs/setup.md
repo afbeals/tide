@@ -17,4 +17,4 @@ Development defaults to `./data/workspace.db`; uploaded files live in the active
 
 After dependency/schema changes run generate and deploy again. If port 8776 is occupied, stop the existing Tide process. Do not delete data to solve migration problems; take a full backup and inspect the error.
 
-Google integrations are optional. Follow the [Google account and API key setup](integrations.md) to create the Cloud project, enable services, add the local keys, rebuild, and verify them. Weather needs no Google key.
+Google integrations are optional and live access is reserved for the production Unraid container. Keep local development key-free; it uses manual alternatives, with mocked integrations in tests and Storybook. Follow the [Google account and API key setup](integrations.md) to create the Cloud project, enable services and set both runtime keys in Unraid. Weather needs no Google key.

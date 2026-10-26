@@ -231,6 +231,7 @@ export interface Workspace {
   provider: {
     configured: boolean;
     mapConfigured: boolean;
+    mapsBrowserKey: string;
     used: number;
     limit: number;
   };
