@@ -73,3 +73,11 @@ GitHub Actions is configured for Linux quality/E2E and macOS visual comparisons,
 The checklist tracks implementation separately from acceptance. The feature register gives each requirement code/document destinations and evidence scope. Most evidence is at feature-family level; full manual acceptance of every requirement, Figma state and preference combination remains a further review. All source/prototype nodes are inventoried and mapped; each source is explicitly marked as awaiting per-node visual acceptance.
 
 The local production application is available at **http://localhost:8776** while its process is running. Deployment to the target host remains a separate operational check. Use the [demo walkthrough](demo.md) and [Unraid guide](deploy-unraid.md) for the next environment.
+
+## LAN HTTP compatibility follow-up
+
+A production browser test reproduced `crypto.randomUUID is not a function` at `http://tide.test:8777`, a locally resolved hostname whose browser context is genuinely insecure. The test explicitly verifies `isSecureContext === false` and the absence of `crypto.randomUUID`. Browser identifiers now use cryptographically random UUIDv4 values from `crypto.getRandomValues`, which is available over LAN HTTP.
+
+After the fix, all **28 production browser journeys** passed, including startup, task/checklist creation, server-validated copying and reload persistence over that insecure origin. All **133 core tests** passed with **96.17% line coverage** and **90.13% branch coverage**. The identifier tests cover uniqueness and UUID version/variant bits without `randomUUID`. All **149 Storybook stories** passed with **79.70% component line coverage** and **73.11% branch coverage**. Coverage gates, TypeScript, lint, formatting and documentation checks passed.
+
+These follow-up results were measured locally on macOS/Chromium using the production build; they extend the original baseline above. Linux image build and actual Unraid host acceptance remain separate operational checks. The [deployment guide](deploy-unraid.md) includes the Windows build/test/tag/push workflow and the Unraid update step.

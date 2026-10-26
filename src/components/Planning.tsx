@@ -1,5 +1,7 @@
 "use client";
 
+import { createId } from "@/lib/id";
+
 import { useState, useEffect } from "react";
 import { ArrowUp, ArrowDown, Check, Plus } from "lucide-react";
 import { useWorkspace } from "./workspace";
@@ -553,7 +555,7 @@ export function RoutineApply({
   );
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [operationId] = useState(() => crypto.randomUUID());
+  const [operationId] = useState(() => createId());
   return (
     <Modal
       title={`Add ${routine.data.title}`}

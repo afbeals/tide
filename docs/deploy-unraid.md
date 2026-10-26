@@ -2,13 +2,19 @@
 
 The Finapp-style workflow builds a complete versioned image locally, tests it, tags latest, then publishes deliberately. SQLite and files stay on the mounted Unraid volume.
 
-```sh
+After merging the changes on GitHub, run these commands from the Windows checkout:
+
+```powershell
+git switch main
+git pull --ff-only
 npm run docker:build
-npm run docker:tag
 npm run docker:test
-# After testing and with Docker Hub credentials:
+# Stop the successful local test with Ctrl+C, then publish:
+npm run docker:tag
 npm run docker:push
 ```
+
+`docker:push` requires Docker Hub authentication and publishes both the versioned image and `afbeals/tide:latest`. On Unraid, select **Docker → Check for Updates → Update** for Tide after publishing. Scheduled update checks and notifications depend on the Unraid configuration. Keep the existing data-folder mapping when recreating the container.
 
 The build targets `linux/amd64` using Node 24 Debian slim. Native better-sqlite3 may compile from source. If using maps, pass the browser key as a Docker build argument (`NEXT_PUBLIC_GOOGLE_MAPS_KEY`); it is a public restricted browser credential. The `docker:build` script loads `.env` when present and forwards this browser key as the build argument; the server key is supplied only at runtime.
 
@@ -34,6 +40,12 @@ Startup resolves the active restored generation, makes a safety backup of an exi
 For upgrades, create/download a full backup, select the tested new version and recreate the container while retaining the volume. For rollback, choose the previous image and restore a compatible pre-upgrade backup when schema changes require it. Image rollback alone does not downgrade database migrations. Do not delete the volume to repair a startup error.
 
 Docker validation requires an available Docker daemon. The implementation environment's actual verification status is recorded in verification.md.
+
+## Plain HTTP on the LAN
+
+The planner supports `http://<unraid-ip>:8776`. Browser-side identifiers use `crypto.getRandomValues()` to create UUIDv4 values without depending on secure-context-only APIs. Unlike `localhost`, an HTTP LAN address is not a secure browser context: calling `crypto.randomUUID()` there can crash the page even when Docker logs and health checks are normal.
+
+If an older image reports `crypto.randomUUID is not a function`, rebuild and publish the fixed image, then update the Unraid container using the workflow above. Keep the mounted data folder. Geolocation still requires a secure context; saved and manually entered locations remain available over LAN HTTP.
 
 ## Windows: entrypoint reports "no such file or directory"
 

@@ -1,5 +1,7 @@
 "use client";
 
+import { createId } from "@/lib/id";
+
 import type { ReactNode } from "react";
 import { cloneElement, isValidElement, useId, useRef } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
@@ -182,10 +184,7 @@ export function Checklist({
         type="button"
         className="text-button"
         onClick={() =>
-          onChange([
-            ...items,
-            { id: crypto.randomUUID(), text: "", done: false },
-          ])
+          onChange([...items, { id: createId(), text: "", done: false }])
         }
       >
         <Plus size={14} /> Add checklist item

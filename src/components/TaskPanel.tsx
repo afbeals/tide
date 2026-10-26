@@ -1,5 +1,7 @@
 "use client";
 
+import { createId } from "@/lib/id";
+
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import {
@@ -541,7 +543,7 @@ export function TaskPanel({
                 onClick={async () => {
                   try {
                     await mutate("bulk", {
-                      operationId: crypto.randomUUID(),
+                      operationId: createId(),
                       action: "copy",
                       items: [{ id: task.id, version: task.version }],
                       day: day || today,
