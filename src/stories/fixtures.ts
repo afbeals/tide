@@ -16,7 +16,13 @@ export function exampleWorkspace(): Workspace {
   return {
     generation: "storybook",
     maintenance: false,
-    provider: { configured: false, mapConfigured: false, used: 0, limit: 1000 },
+    provider: {
+      configured: false,
+      mapConfigured: false,
+      mapsBrowserKey: "",
+      used: 0,
+      limit: 1000,
+    },
     activities: [
       {
         id: "activity",

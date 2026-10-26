@@ -3,8 +3,6 @@ services:
     image: afbeals/tide:latest
     build:
       context: .
-      args:
-        NEXT_PUBLIC_GOOGLE_MAPS_KEY: ${NEXT_PUBLIC_GOOGLE_MAPS_KEY:-}
     container_name: tide
     restart: unless-stopped
     ports:
@@ -14,7 +12,10 @@ services:
     environment:
       TIDE_DATA_DIR: /app/data
       DATABASE_URL: file:/app/data/workspace.db
+      TIDE_GOOGLE_MODE: ${TIDE_GOOGLE_MODE:-disabled}
       GOOGLE_SERVER_API_KEY: ${GOOGLE_SERVER_API_KEY:-}
+      GOOGLE_MAPS_BROWSER_KEY: ${GOOGLE_MAPS_BROWSER_KEY:-}
+      NEXT_PUBLIC_GOOGLE_MAPS_KEY: ${NEXT_PUBLIC_GOOGLE_MAPS_KEY:-}
       TIDE_SEED_DEMO: ${TIDE_SEED_DEMO:-false}
     labels:
       net.unraid.docker.webui: "http://[IP]:[PORT:8776]/"

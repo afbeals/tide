@@ -5,6 +5,12 @@ import { settings } from "./store";
 import { workspaceDay } from "../lib/domain";
 
 const usageFile = path.join(dataRoot, "provider-usage.json");
+function liveGoogleEnabled() {
+  return (
+    process.env.NODE_ENV !== "development" &&
+    process.env.TIDE_GOOGLE_MODE === "live"
+  );
+}
 function usage() {
   try {
     return JSON.parse(fs.readFileSync(usageFile, "utf8")) as {
@@ -18,9 +24,18 @@ function usage() {
 export async function providerStatus() {
   const s = await settings();
   const u = usage();
+  // Read the legacy name dynamically so Next never freezes it at build time.
+  const env = process.env;
+  const mapsBrowserKey = liveGoogleEnabled()
+    ? env.GOOGLE_MAPS_BROWSER_KEY || env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || ""
+    : "";
   return {
-    configured: !!process.env.GOOGLE_SERVER_API_KEY && s.googleEnabled,
-    mapConfigured: !!process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY,
+    configured:
+      liveGoogleEnabled() &&
+      !!process.env.GOOGLE_SERVER_API_KEY &&
+      s.googleEnabled,
+    mapConfigured: !!mapsBrowserKey,
+    mapsBrowserKey,
     used: u.day === workspaceDay({ ...s, dayBoundary: "00:00" }) ? u.count : 0,
     limit: s.googleDailyLimit,
   };
@@ -28,7 +43,11 @@ export async function providerStatus() {
 async function allowance() {
   await serialize(async () => {
     const cfg = await settings();
-    if (!cfg.googleEnabled || !process.env.GOOGLE_SERVER_API_KEY)
+    if (
+      !liveGoogleEnabled() ||
+      !cfg.googleEnabled ||
+      !process.env.GOOGLE_SERVER_API_KEY
+    )
       throw new HttpError(
         503,
         "Google is not configured. Use a saved place, manual address, or manual travel estimate.",

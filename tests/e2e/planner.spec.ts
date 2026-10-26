@@ -1,5 +1,12 @@
 import { test, expect } from "@playwright/test";
 
+test.beforeEach(async ({ page }) => {
+  // Tests never contact Google. Specific map tests fulfill this script locally.
+  await page.route(/^https:\/\/[^/]*google(?:apis)?\.com\//, (route) =>
+    route.abort(),
+  );
+});
+
 test("capture, real persistence, shared views, and task details", async ({
   page,
 }) => {
@@ -298,6 +305,13 @@ test("edits one occurrence, pauses and resumes a series without losing its edito
 test("uses an outing, preserves manual planning during provider failure and opens directions", async ({
   page,
 }) => {
+  await page.route("**/api/workspace", async (route) => {
+    const response = await route.fetch();
+    const workspace = await response.json();
+    workspace.provider.mapsBrowserKey = "";
+    workspace.provider.mapConfigured = false;
+    await route.fulfill({ response, json: workspace });
+  });
   await page.goto("/?section=outings&task=errands");
   const outing = page.getByRole("dialog", {
     name: "Saturday errands",
@@ -504,7 +518,7 @@ test("shows unavailable weather while keeping task details editable", async ({
       });
     else await route.continue();
   });
-  await page.goto("/?task=" + encodeURIComponent(plant.id));
+  await page.goto(`/?task=${encodeURIComponent(plant.id)}`);
   await page
     .getByRole("button", { name: "Check weather", exact: true })
     .click();
@@ -814,18 +828,18 @@ test("creates and edits management records with persisted relationships and sign
       has: page.getByRole("button", { name: title, exact: true }),
     });
     await card.getByRole("button", { name: "Edit", exact: true }).click();
-    await dialog.getByLabel("Name *", { exact: true }).fill(title + " updated");
+    await dialog.getByLabel("Name *", { exact: true }).fill(`${title} updated`);
     await dialog.getByRole("button", { name: "Save", exact: true }).click();
     await expect(dialog).not.toBeVisible();
     await page.reload();
     await expect(
-      page.getByRole("button", { name: title + " updated", exact: true }),
+      page.getByRole("button", { name: `${title} updated`, exact: true }),
     ).toBeVisible();
     const workspace = await (await page.request.get("/api/workspace")).json();
     const record = workspace.records.find(
       (r: { kind: string; data: { title?: string; name?: string } }) =>
         r.kind === item.kind &&
-        (r.data.title || r.data.name) === title + " updated",
+        (r.data.title || r.data.name) === `${title} updated`,
     );
     expect(record?.version).toBe(2);
     if (item.kind === "project") {
@@ -934,5 +948,46 @@ test("loads and persists tasks on plain HTTP without secure-context APIs", async
         record.kind === "task" && record.data.title === "LAN HTTP task",
     ),
   ).toHaveLength(2);
+  expect(errors).toEqual([]);
+});
+
+test("loads an outing map using a browser key supplied at server startup", async ({
+  page,
+}) => {
+  const keys: string[] = [];
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.route(
+    "https://maps.googleapis.com/maps/api/js?**",
+    async (route) => {
+      keys.push(new URL(route.request().url()).searchParams.get("key") || "");
+      await route.fulfill({
+        contentType: "application/javascript",
+        body: `window.google = { maps: {
+        Map: class {
+          constructor(node) { node.textContent = "Runtime map loaded"; }
+          fitBounds() {}
+          setZoom() {}
+        },
+        Marker: class { setMap() {} addListener() {} },
+        LatLngBounds: class { extend() {} }
+      } };`,
+      });
+    },
+  );
+  const response = await page.request.get("/api/workspace");
+  expect(response.headers()["cache-control"]).toBe("no-store");
+  expect((await response.json()).provider).toMatchObject({
+    mapConfigured: true,
+    mapsBrowserKey: "tide-runtime-browser-test-key",
+  });
+  await page.goto("/?section=outings&task=errands");
+  const outing = page.getByRole("dialog", {
+    name: "Saturday errands",
+    exact: true,
+  });
+  await outing.getByRole("button", { name: "Map", exact: true }).click();
+  await expect(outing.locator(".google-map")).toHaveText("Runtime map loaded");
+  expect(keys).toEqual(["tide-runtime-browser-test-key"]);
   expect(errors).toEqual([]);
 });

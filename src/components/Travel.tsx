@@ -16,6 +16,7 @@ import { TaskRow } from "./TaskViews";
 import { workspaceDay } from "@/lib/domain";
 import { recordsOf } from "@/lib/types";
 import type { Entity, Task, Place, Outing, Settings } from "@/lib/types";
+
 interface RouteResult {
   routes: {
     duration: string;
@@ -373,8 +374,8 @@ function GoogleMap({
 }) {
   const node = useRef<HTMLDivElement>(null);
   const [error, setError] = useState("");
-  const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY;
   const { workspace } = useWorkspace();
+  const key = workspace.provider.mapsBrowserKey;
   useEffect(() => {
     if (!key || !node.current) return;
     let disposed = false;

@@ -24,6 +24,8 @@ Story tests start their own Vite browser environment. They need no app/Storybook
 
 The production browser suite also visits `http://tide.test:8777`, which Chromium resolves to loopback through a test-only host rule. Its browser origin remains insecure, matching Unraid LAN HTTP. The test verifies that `crypto.randomUUID` is absent, then checks startup, task/checklist creation, copying with a valid operation UUID, and persistence after reload. No machine or router DNS changes are needed.
 
+Real Google keys belong only in production Unraid. Local Next development disables Google regardless of inherited keys/live mode; local container tests explicitly disable live access and clear all Google-key variables without reading `.env`. Automated provider tests use fake keys and mocked fetch responses. Browser tests use an empty server key, a fake browser key supplied only when the production test server starts, and intercept Google network requests. The runtime map test fulfills the SDK script locally; no test contacts paid Google services. It verifies that a key-free build reads runtime browser configuration, while API tests check precedence/rotation, uncached delivery and private-key exclusion. Docker command tests stub the Docker invocation to verify that local Google credentials are never build arguments and container tests override inherited credentials with empty values; these checks run without a Docker daemon.
+
 ## Coverage scope and gates
 
 | Suite | Instrumented source | Lines | Statements | Functions | Branches |
@@ -33,7 +35,7 @@ The production browser suite also visits `http://tide.test:8777`, which Chromium
 
 These are separate reports, not a whole-application percentage. Component coverage measures isolated story runs; production E2E exercises additional UI paths but is not included in either percentage. The gates were raised after adding recovery, successful saves and failure interactions; they protect the expanded suite. Passing coverage does not individually certify every feature or Figma state.
 
-The current 133 core tests measure 96.17% lines and 90.13% branches; 149 Storybook stories measure 79.70% component lines and 73.11% branches. These replace the earlier 107-test/71-story baseline (92.51% core lines and 50.63% component lines).
+The current 141 core tests measure 96.18% lines and 90.23% branches; 149 Storybook stories measure 79.70% component lines and 73.11% branches. These replace the earlier 107-test/71-story baseline (92.51% core lines and 50.63% component lines).
 
 Open `coverage/core/index.html` or `coverage/components/index.html` after the corresponding command. Adding untested files within the declared scopes lowers coverage. Do not exclude new business logic, weaken gates or add assertions that merely repeat implementation to pass.
 
@@ -66,7 +68,7 @@ Stories render real app components, workspace/query providers and application CS
 | [Backup recovery](../src/stories/Backups.stories.tsx) | Empty/failed history, retry, invalid archive, restore preview/consent/cancel/interruption, missing downloads |
 | [Workspace interactions](../src/stories/WorkspaceFlows.stories.tsx) | Filters/saved views, appearance/reminders, bulk preview/confirmation/failure, references, Trash, loading/connection retry and deletion consent |
 
-[Fixtures](../src/stories/fixtures.ts) use a fixed date and fake people/tasks. MSW intercepts `/api/` requests and resets state between stories; unhandled API calls fail instead of reaching a workspace. The Google browser key is forced empty. Stories never call paid Google services. The generated worker lives in `.storybook/public/`, separate from application public assets.
+[Fixtures](../src/stories/fixtures.ts) use a fixed date and fake people/tasks. MSW intercepts `/api/` requests and resets state between stories; unhandled API calls fail instead of reaching a workspace. Fixture runtime configuration supplies an empty Google browser key. Stories never call paid Google services. The generated worker lives in `.storybook/public/`, separate from application public assets.
 
 Add stories for meaningful new component states. Use `play` to interact through accessible roles/labels and assert visible behavior, accepted payloads or callbacks. Use real components/providers and mock network boundaries. Axe checks fail stories on detected WCAG A/AA/2.1AA violations; they do not replace keyboard or assistive-technology review.
 

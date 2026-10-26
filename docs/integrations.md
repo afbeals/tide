@@ -39,38 +39,33 @@ https://YOUR_TIDE_HOSTNAME/*
 
 Replace the uppercase placeholders with your actual address. Add only the origins you use. The browser key is visible to browsers by design; the server key stays on the server. Do not place the server key in a variable beginning with `NEXT_PUBLIC_`.
 
-## 3. Add the keys locally
+## 3. Keep local development and tests independent of Google
 
-In `~/Code/tmp/tide`, create `.env` using [.env.example](../.env.example) as the template if it does not already exist. Edit the existing file when one is present, preserving its database and other settings. Fill in these two values:
+Keep both real Google keys exclusively in Unraid. The local [.env.example](../.env.example) sets `TIDE_GOOGLE_MODE=disabled` and contains no Google credentials. Next development always disables Google calls and browser-key delivery, even if keys or live mode are accidentally inherited. The running local application offers saved places, manual estimates and directions links; Storybook and automated provider tests use mocked Google responses.
 
-```dotenv
-GOOGLE_SERVER_API_KEY=your_server_key
-NEXT_PUBLIC_GOOGLE_MAPS_KEY=your_browser_key
-```
-
-The `.env` file is ignored by Git. Next loads it for local development and production commands. Keep actual credentials out of committed documentation.
-
-For development, restart `npm run dev` after changing the keys. For the local production application, stop the running Tide process, then rebuild and start it:
-
-```sh
-cd ~/Code/tmp/tide
-npm run build
-npm start
-```
-
-The browser key is included in the production build. Changing only the runtime environment does not replace a browser key already built into the application.
+`npm run docker:test` does not read `.env`. It explicitly disables live Google access and clears both current key variables and the legacy browser-key variable in the test container, including when the parent environment or image contains them. Local container tests therefore need no credentials. Automated tests use fake values and intercept provider calls; they do not consume Google quota. Opening a directions link leaves Tide and opens Google's normal website.
 
 ## 4. Configure Docker and Unraid
 
-Before building the image, set `NEXT_PUBLIC_GOOGLE_MAPS_KEY` in the project `.env` or build environment. `npm run docker:build` loads `.env` when present and forwards the browser key as a Docker build argument. The Compose file forwards the same build argument when building locally.
+Build and publish the image without either key. Neither key belongs in a Docker build argument, image or committed file.
 
-On Unraid, add **`GOOGLE_SERVER_API_KEY`** as a container environment variable with your server key, then recreate/restart the container. Do not supply the server key as a build argument. If you change the browser key, rebuild the image and replace the running container with that image. See [Docker and Unraid](deploy-unraid.md) for the complete build, image and volume workflow.
+On Unraid, open **Docker → Tide → Edit → Add another Path, Port, Variable, Label or Device**, choose **Variable**, and add each of these container environment variables:
+
+| Key | Value |
+|---|---|
+| `TIDE_GOOGLE_MODE` | `live` |
+| `GOOGLE_SERVER_API_KEY` | Your server key for Places API (New) and Routes API |
+| `GOOGLE_MAPS_BROWSER_KEY` | Your browser key for Maps JavaScript API |
+
+Apply the configuration and recreate the container while preserving its data-folder mapping. Changing a key only requires applying the updated container environment and refreshing the browser; no image rebuild or Docker Hub push is needed after installing a version with runtime configuration. The public browser key is delivered through the uncached workspace response; the server key stays private. The browser key remains visible to browsers by design and needs website/API restrictions.
+
+The older `NEXT_PUBLIC_GOOGLE_MAPS_KEY` name is supported as a runtime fallback on the server; `GOOGLE_MAPS_BROWSER_KEY` takes precedence. Prefer the new name. The included Compose file also supplies keys at runtime and defaults live access to disabled. See [Docker and Unraid](deploy-unraid.md) for the complete build, image and volume workflow.
 
 ## 5. Enable and verify the integration
 
 1. Open Tide → **Settings → Dates, backups & integrations**.
 2. Under **Google services**, enable **Enable Google requests**, set the **Daily request allowance**, and save.
-3. The Google integration summary on Settings should show **Configured**. This reports that the server key is present and requests are enabled; it does not prove that Google has accepted the key, billing or restrictions.
+3. The Google integration summary on Settings should show **Configured**. This reports that production live mode is enabled, the server key is present and requests are enabled in workspace settings; it does not prove that Google has accepted the key, billing or restrictions.
 4. Under **Settings → Saved places**, add/edit a place and use **Search Google Places** to check a real destination search.
 5. Open an away task, choose its start/destination and use its route/opening-hours checks. Open an outing's map to verify the browser key separately.
 

@@ -25,6 +25,8 @@ All responses are uncached. Write requests use JSON except uploads. Browser writ
 | POST `/api/restore-upload` | Multipart full backup ZIP; validates and returns preview/token |
 | POST `/api/provider` | Places, place-details/opening hours, route or weather request with explicit `action` |
 
+GET `/api/workspace` includes `provider.mapsBrowserKey`, the public Maps JavaScript key read from the running server's `GOOGLE_MAPS_BROWSER_KEY` environment variable (empty string when absent or disabled). `provider.mapConfigured` reports whether that value is present. The browser uses this field rather than a build-time key. Live access requires `TIDE_GOOGLE_MODE=live` and is always disabled under Next development; otherwise server Google requests return 503 and browser keys are withheld. For existing installations, `NEXT_PUBLIC_GOOGLE_MAPS_KEY` remains a runtime fallback; the new variable takes precedence. Responses remain `Cache-Control: no-store`. The private `GOOGLE_SERVER_API_KEY` is never included in workspace responses or exports.
+
 Entity envelope: `{id,kind,version,data,createdAt,updatedAt}`. Errors: `{error,current?}`. Validation returns 422 with issues; stale writes return 409 and current record where applicable; unavailable records return 404; maintenance returns 503; provider allowance returns 429.
 
 Example creation: `POST /api/records` with `kind:"person"` and `data:{name:"Alex",color:"#e8ba72",retired:false}`. Use returned ID/version in subsequent writes. For task payloads use `taskDefaults()` and the documented type; a title is the only user-required field, while the client supplies structural defaults.

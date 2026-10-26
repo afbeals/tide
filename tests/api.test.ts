@@ -1,5 +1,6 @@
 import {
   afterAll,
+  afterEach,
   beforeAll,
   beforeEach,
   describe,
@@ -14,6 +15,7 @@ import { NextRequest } from "next/server";
 import { taskDefaults } from "../src/lib/types";
 import { newPlan, workspaceDay } from "../src/lib/domain";
 import { temporaryDatabase } from "./helpers/database";
+
 const fixture = temporaryDatabase("api");
 let api: typeof import("../src/app/api/[...path]/route");
 let store: typeof import("../src/server/store");
@@ -38,6 +40,7 @@ beforeEach(async () => {
 afterAll(async () => {
   await fixture.close(database);
 });
+afterEach(() => vi.unstubAllEnvs());
 async function call(
   resource: string,
   method = "GET",
@@ -70,6 +73,32 @@ async function task(title = "API task") {
   return response.json();
 }
 describe("HTTP contract with real SQLite persistence", () => {
+  it("serves uncached runtime browser configuration without exposing the server credential or exporting keys", async () => {
+    vi.stubEnv("TIDE_GOOGLE_MODE", "live");
+    vi.stubEnv("GOOGLE_SERVER_API_KEY", "private-api-test-server-key");
+    vi.stubEnv("GOOGLE_MAPS_BROWSER_KEY", "public-api-test-browser-key");
+    vi.stubEnv("NEXT_PUBLIC_GOOGLE_MAPS_KEY", "legacy-api-test-browser-key");
+    const response = await call("workspace");
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    const workspace = await response.json();
+    expect(workspace.provider).toMatchObject({
+      mapConfigured: true,
+      mapsBrowserKey: "public-api-test-browser-key",
+    });
+    expect(JSON.stringify(workspace)).not.toContain(
+      "private-api-test-server-key",
+    );
+    expect(JSON.stringify(workspace)).not.toContain(
+      "legacy-api-test-browser-key",
+    );
+    const exported = await (await call("export")).text();
+    expect(exported).not.toContain("private-api-test-server-key");
+    expect(exported).not.toContain("public-api-test-browser-key");
+    vi.stubEnv("GOOGLE_MAPS_BROWSER_KEY", "rotated-api-test-browser-key");
+    expect(
+      (await (await call("workspace")).json()).provider.mapsBrowserKey,
+    ).toBe("rotated-api-test-browser-key");
+  });
   it("reports health, workspace generation and uncached data", async () => {
     const health = await call("health");
     expect(await health.json()).toEqual({ ok: true, maintenance: false });
