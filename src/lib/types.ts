@@ -49,6 +49,7 @@ export interface Recurrence {
   excludedPeriods?: { start: string; end: string }[];
 }
 export interface Task {
+  boardOrder?: number;
   suspended?: boolean;
   occurrenceOverrides?: string[];
   title: string;

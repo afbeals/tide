@@ -9,6 +9,7 @@ All responses are uncached. Write requests use JSON except uploads. Browser writ
 | POST `/api/records` | `{kind,data}` create |
 | PATCH `/api/records/:id` | `{version,data,scopeFrom?}` replace validated payload; `scopeFrom` is the inclusive future-series date |
 | DELETE `/api/records/:id` | `{version}` permanent deletion where allowed |
+| POST `/api/board-move` | `{id,version,status,items:[{id,version}]}` atomically saves the complete destination column order (including hidden cards) and status; stale versions/membership return 409 |
 | POST `/api/plan` | `{data,version,taskEdits?}` person/day planning transaction |
 | POST `/api/review` | `{data,version,decisions:[{id,version,action,day}]}` atomic end-of-day review |
 | POST `/api/bulk-undo` | `{operationId}` version-aware reversal of a bulk action |
@@ -32,3 +33,5 @@ Entity envelope: `{id,kind,version,data,createdAt,updatedAt}`. Errors: `{error,c
 Example creation: `POST /api/records` with `kind:"person"` and `data:{name:"Alex",color:"#e8ba72",retired:false}`. Use returned ID/version in subsequent writes. For task payloads use `taskDefaults()` and the documented type; a title is the only user-required field, while the client supplies structural defaults.
 
 Datetime-local input is normalized in the workspace IANA time zone before storage. Stored schedule timestamps are instants; day-only fields stay local dates. `scopeFrom` preserves older outcomes and independently edited occurrence fields.
+
+Task `boardOrder` is an optional saved position within its status column. Legacy tasks fall back to creation time and ID; copies and newly generated occurrences start without a saved position. Planning offers repeating instances only when their planned day matches the day being planned.

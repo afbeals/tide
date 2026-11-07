@@ -72,6 +72,127 @@ async function task(title = "API task") {
   expect(response.status).toBe(201);
   return response.json();
 }
+describe("atomic board moves", () => {
+  it("persists same-column order including hidden cards, then moves into an empty status column", async () => {
+    const a = await task("A"),
+      hidden = await task("Hidden"),
+      b = await task("B");
+    const first = await call("board-move", "POST", {
+      id: b.id,
+      version: b.version,
+      status: "Open",
+      items: [b, a, hidden].map(({ id, version }) => ({ id, version })),
+    });
+    expect(first.status).toBe(200);
+    const rows = (await (await call("workspace")).json()).records.filter(
+      (t: { kind: string }) => t.kind === "task",
+    );
+    expect(
+      [b, a, hidden].map(
+        (t) => rows.find((r: { id: string }) => r.id === t.id).data.boardOrder,
+      ),
+    ).toEqual([0, 1, 2]);
+    const current = rows.find((r: { id: string }) => r.id === b.id);
+    expect(
+      (
+        await call("board-move", "POST", {
+          id: b.id,
+          version: current.version,
+          status: "Done",
+          items: [{ id: b.id, version: current.version }],
+        })
+      ).status,
+    ).toBe(200);
+    const saved = (await store.entities()).find((t) => t.id === b.id)!;
+    expect(saved.data).toMatchObject({
+      status: "Done",
+      boardOrder: 0,
+      completedAt: expect.any(String),
+    });
+    expect(
+      (saved.data as unknown as { completedAt: string }).completedAt,
+    ).not.toBe("");
+    expect(
+      (
+        await call("board-move", "POST", {
+          id: b.id,
+          version: saved.version,
+          status: "In progress",
+          items: [{ id: b.id, version: saved.version }],
+        })
+      ).status,
+    ).toBe(200);
+    expect(
+      (await store.entities()).find((t) => t.id === b.id)!.data.completedAt,
+    ).toBe("");
+  });
+  it("rejects stale versions, changed membership, duplicate IDs, invalid statuses and missing tasks without partial writes", async () => {
+    const a = await task("A"),
+      b = await task("B");
+    const body = {
+      id: a.id,
+      version: a.version,
+      status: "Open",
+      items: [a, b].map(({ id, version }) => ({ id, version })),
+    };
+    const before = await store.entities();
+    for (const patch of [
+      { version: 0 },
+      { items: [{ id: a.id, version: a.version }] },
+      { items: [body.items[0], body.items[0]] },
+      { items: [{ id: a.id, version: 0 }, body.items[1]] },
+    ])
+      expect(
+        (await call("board-move", "POST", { ...body, ...patch })).status,
+      ).toBe(409);
+    expect(
+      (await call("board-move", "POST", { ...body, id: "missing" })).status,
+    ).toBe(404);
+    expect(
+      (await call("board-move", "POST", { ...body, status: "invalid" })).status,
+    ).toBe(422);
+    expect(await store.entities()).toEqual(before);
+  });
+  it("records recurrence completion and reopening when moving an instance", async () => {
+    const response = await call("records", "POST", {
+      kind: "task",
+      data: {
+        ...taskDefaults("Repeating"),
+        seriesId: "series",
+        occurrenceDay: "2026-11-07",
+        plannedDay: "2026-11-07",
+      },
+    });
+    const t = await response.json();
+    expect(
+      (
+        await call("board-move", "POST", {
+          id: t.id,
+          version: t.version,
+          status: "Done",
+          items: [{ id: t.id, version: t.version }],
+        })
+      ).status,
+    ).toBe(200);
+    let row = (await store.entities()).find((r) => r.id === t.id)!;
+    expect(row.data).toMatchObject({
+      outcome: "done",
+      occurrenceOverrides: expect.arrayContaining(["status"]),
+    });
+    expect(
+      (
+        await call("board-move", "POST", {
+          id: row.id,
+          version: row.version,
+          status: "Open",
+          items: [{ id: row.id, version: row.version }],
+        })
+      ).status,
+    ).toBe(200);
+    row = (await store.entities()).find((r) => r.id === t.id)!;
+    expect(row.data).toMatchObject({ outcome: null, completedAt: "" });
+  });
+});
 describe("HTTP contract with real SQLite persistence", () => {
   it("serves uncached runtime browser configuration without exposing the server credential or exporting keys", async () => {
     vi.stubEnv("TIDE_GOOGLE_MODE", "live");
