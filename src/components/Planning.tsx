@@ -8,6 +8,7 @@ import { useWorkspace } from "./workspace";
 import { Modal, Field, Minutes, ErrorMessage, Checklist } from "./ui";
 import {
   capacity,
+  planningTasks,
   newPlan,
   workload,
   addDays,
@@ -50,15 +51,10 @@ export function PlanningWizard({
       return null;
     }
   });
-  const tasks = recordsOf<Task>(workspace.records, "task").filter(
-    (t) =>
-      !t.data.deletedAt &&
-      !t.data.archived &&
-      !t.data.recurrence &&
-      !t.data.suspended &&
-      t.data.status !== "Done" &&
-      !t.data.outcome &&
-      (t.data.ownerId === personId || !t.data.ownerId),
+  const tasks = planningTasks(
+    recordsOf<Task>(workspace.records, "task"),
+    personId,
+    day,
   );
   const [baseVersion, setBaseVersion] = useState(
     draft ? draft.version : existing?.version,
