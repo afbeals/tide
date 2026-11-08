@@ -13,23 +13,33 @@ function docker(args) {
     );
     process.exit(1);
   }
-  if (result.status) process.exit(result.status);
+  if (result.status !== 0) process.exit(result.status ?? 1);
+}
+function build() {
+  docker([
+    "buildx",
+    "build",
+    "--platform",
+    "linux/amd64",
+    "--load",
+    "-t",
+    version,
+    ".",
+  ]);
+}
+function tag() {
+  docker(["tag", version, image + ":latest"]);
+}
+function push() {
+  docker(["push", version]);
+  docker(["push", image + ":latest"]);
 }
 switch (process.argv[2]) {
   case "build":
-    docker([
-      "buildx",
-      "build",
-      "--platform",
-      "linux/amd64",
-      "--load",
-      "-t",
-      version,
-      ".",
-    ]);
+    build();
     break;
   case "tag":
-    docker(["tag", version, image + ":latest"]);
+    tag();
     break;
   case "test":
     fs.mkdirSync("docker-data", { recursive: true });
@@ -54,10 +64,15 @@ switch (process.argv[2]) {
     ]);
     break;
   case "push":
-    docker(["push", version]);
-    docker(["push", image + ":latest"]);
+    push();
+    break;
+  case "release":
+    build();
+    tag();
+    push();
+    console.log(`Released ${version} and ${image}:latest`);
     break;
   default:
-    console.error("Usage: node scripts/docker.mjs build|tag|test|push");
+    console.error("Usage: node scripts/docker.mjs build|tag|test|push|release");
     process.exit(1);
 }

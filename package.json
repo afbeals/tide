@@ -23,6 +23,7 @@
     "docker:tag": "node scripts/docker.mjs tag",
     "docker:test": "node scripts/docker.mjs test",
     "docker:push": "node scripts/docker.mjs push",
+    "docker:release": "node scripts/docker.mjs release",
     "docs:check": "node scripts/check-docs.mjs",
     "format": "prettier --write src scripts tests .storybook .github --ignore-path .prettierignore *.ts *.mjs",
     "format:check": "prettier --check src scripts tests .storybook .github --ignore-path .prettierignore *.ts *.mjs",

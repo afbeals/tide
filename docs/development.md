@@ -17,6 +17,7 @@ The independent project uses npm, Next.js App Router, React and TypeScript. No P
 | `npm run db:deploy` | Apply committed migrations |
 | `npm run db:seed` | Deliberate, non-destructive demo seed |
 | `npm run db:backup` | Full database-and-attachment archive |
+| `npm run docker:release` | Build the amd64 image, tag latest and push both Docker Hub tags |
 
 Local environment variables: `TIDE_DATA_DIR` (default `./data`), `DATABASE_URL` (default `file:./data/workspace.db`) and `TIDE_GOOGLE_MODE=disabled`. Keep real Google keys exclusively in production Unraid. `npm run dev` disables live Google requests and map-key delivery even if keys or live mode were inherited. Use manual alternatives in the local app and mocked responses in Storybook/tests. `docker:test` explicitly disables Google and clears credential variables without reading `.env`.
 

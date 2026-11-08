@@ -11,7 +11,10 @@ afterEach(() => {
     fs.rmSync(dir, { recursive: true, force: true });
 });
 
-function runDocker(command: string) {
+function runDocker(
+  command: string,
+  options: { failAt?: number; signalAt?: number; unavailable?: boolean } = {},
+) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tide-docker-config-"));
   directories.push(dir);
   const capture = path.join(dir, "capture.json");
@@ -32,14 +35,19 @@ function runDocker(command: string) {
 import fs from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
 childProcess.spawnSync = (command, args) => {
-fs.writeFileSync(process.env.DOCKER_CAPTURE_PATH, JSON.stringify({
+const capture = process.env.DOCKER_CAPTURE_PATH;
+const calls = fs.existsSync(capture) ? JSON.parse(fs.readFileSync(capture, "utf8")) : [];
+calls.push({
   command, args,
   server: process.env.GOOGLE_SERVER_API_KEY,
   browser: process.env.GOOGLE_MAPS_BROWSER_KEY,
   mode: process.env.TIDE_GOOGLE_MODE,
   localOnly: process.env.TIDE_DOCKER_LOCAL_ONLY,
-}));
-return { status: 0 };
+});
+fs.writeFileSync(capture, JSON.stringify(calls));
+if (process.env.DOCKER_UNAVAILABLE === "true") return { error: new Error("ENOENT"), status: null };
+if (calls.length === Number(process.env.DOCKER_SIGNAL_AT)) return { status: null, signal: "SIGTERM" };
+return { status: calls.length === Number(process.env.DOCKER_FAIL_AT) ? 7 : 0 };
 };
 syncBuiltinESMExports();
 `,
@@ -63,24 +71,29 @@ syncBuiltinESMExports();
         NEXT_PUBLIC_GOOGLE_MAPS_KEY: "inherited-test-legacy-key",
         TIDE_GOOGLE_MODE: "live",
         DOCKER_CAPTURE_PATH: capture,
+        DOCKER_FAIL_AT: String(options.failAt ?? 0),
+        DOCKER_SIGNAL_AT: String(options.signalAt ?? 0),
+        DOCKER_UNAVAILABLE: String(options.unavailable ?? false),
       },
       encoding: "utf8",
     },
   );
-  expect(result.status, result.stderr).toBe(0);
-  return JSON.parse(fs.readFileSync(capture, "utf8")) as {
+  const calls = JSON.parse(fs.readFileSync(capture, "utf8")) as {
     command: string;
     args: string[];
     server?: string;
     browser?: string;
     mode?: string;
     localOnly?: string;
-  };
+  }[];
+  return { ...result, calls };
 }
 
 describe("Docker Google configuration", () => {
   it("builds without loading local credentials or passing key build arguments", () => {
-    const result = runDocker("build");
+    const execution = runDocker("build");
+    expect(execution.status, execution.stderr).toBe(0);
+    const [result] = execution.calls;
     expect(result.command).toBe("docker");
     expect(result.args.slice(0, 6)).toEqual([
       "buildx",
@@ -98,7 +111,9 @@ describe("Docker Google configuration", () => {
   });
 
   it("disables Google credentials by default for local container tests", () => {
-    const result = runDocker("test");
+    const execution = runDocker("test");
+    expect(execution.status, execution.stderr).toBe(0);
+    const [result] = execution.calls;
     for (const key of [
       "GOOGLE_SERVER_API_KEY",
       "GOOGLE_MAPS_BROWSER_KEY",
@@ -112,5 +127,68 @@ describe("Docker Google configuration", () => {
     expect(result.args.join(" ")).not.toMatch(
       /local-test-|DATABASE_URL|env-file|host-only/,
     );
+  });
+});
+
+describe("Docker release", () => {
+  it("builds the versioned amd64 image, tags latest, and publishes both in order", () => {
+    const result = runDocker("release");
+    expect(result.status, result.stderr).toBe(0);
+    const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+    const version = `afbeals/tide:${pkg.version}`;
+    expect(
+      result.calls.map(({ command, args }) => ({ command, args })),
+    ).toEqual([
+      {
+        command: "docker",
+        args: [
+          "buildx",
+          "build",
+          "--platform",
+          "linux/amd64",
+          "--load",
+          "-t",
+          version,
+          ".",
+        ],
+      },
+      { command: "docker", args: ["tag", version, "afbeals/tide:latest"] },
+      { command: "docker", args: ["push", version] },
+      { command: "docker", args: ["push", "afbeals/tide:latest"] },
+    ]);
+    for (const call of result.calls) {
+      expect(call.localOnly).toBeUndefined();
+      expect(call.args.join(" ")).not.toMatch(
+        /local-test-|inherited-test-|--build-arg|env-file/,
+      );
+    }
+    expect(result.stdout).toContain(
+      `Released ${version} and afbeals/tide:latest`,
+    );
+  });
+
+  it.each([1, 2, 3, 4])(
+    "stops immediately when release step %i fails",
+    (failAt) => {
+      const result = runDocker("release", { failAt });
+      expect(result.status).toBe(7);
+      expect(result.calls).toHaveLength(failAt);
+      expect(result.stdout).not.toContain("Released");
+    },
+  );
+
+  it("does not tag or push after Docker is terminated by a signal", () => {
+    const result = runDocker("release", { signalAt: 1 });
+    expect(result.status).toBe(1);
+    expect(result.calls).toHaveLength(1);
+    expect(result.stdout).not.toContain("Released");
+  });
+
+  it("reports missing Docker and stops before publishing", () => {
+    const result = runDocker("release", { unavailable: true });
+    expect(result.status).toBe(1);
+    expect(result.calls).toHaveLength(1);
+    expect(result.stderr).toContain("Docker is not available");
+    expect(result.stdout).not.toContain("Released");
   });
 });
