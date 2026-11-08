@@ -202,6 +202,26 @@ export const handlers = [
     if (workspaceDelay) await delay(workspaceDelay);
     return HttpResponse.json(workspace);
   }),
+  http.post("/api/board-move", async ({ request }) => {
+    if (writeDelay) await delay(writeDelay);
+    if (failWrites)
+      return HttpResponse.json(
+        { error: "The server is unavailable. Your draft is preserved." },
+        { status: 503 },
+      );
+    const body = (await request.json()) as {
+      id: string;
+      status: Task["status"];
+      items: { id: string }[];
+    };
+    body.items.forEach((item, boardOrder) =>
+      patchMockTask(item.id, {
+        boardOrder,
+        ...(item.id === body.id ? { status: body.status } : {}),
+      }),
+    );
+    return HttpResponse.json({ ok: true });
+  }),
   http.post("/api/records", async ({ request }) => {
     if (writeDelay) await delay(writeDelay);
     if (failWrites)

@@ -3,7 +3,8 @@
 import { useState } from "react";
 import {
   DndContext,
-  useDraggable,
+  closestCorners,
+  useDndContext,
   useDroppable,
   PointerSensor,
   useSensor,
@@ -11,6 +12,13 @@ import {
   KeyboardSensor,
 } from "@dnd-kit/core";
 import type { DragEndEvent } from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  sortableKeyboardCoordinates,
+} from "@dnd-kit/sortable";
+import { boardTasks, sortBoardTasks } from "@/lib/board";
 import { CSS } from "@dnd-kit/utilities";
 import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
@@ -222,8 +230,14 @@ function BoardCard({
   task: Entity<Task>;
   onOpen: (id: string) => void;
 }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } =
-    useDraggable({ id: task.id });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: task.id, data: { status: task.data.status } });
   const { workspace, save, notify } = useWorkspace();
   const t = task.data;
   const owner = recordsOf<Person>(workspace.records, "person").find(
@@ -233,7 +247,7 @@ function BoardCard({
     <article
       ref={setNodeRef}
       className={`board-card ${isDragging ? "dragging" : ""}`}
-      style={{ transform: CSS.Translate.toString(transform) }}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
     >
       <button
         className="drag-handle"
@@ -295,11 +309,12 @@ function BoardColumn({
   tasks: Entity<Task>[];
   onOpen: (id: string) => void;
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: status });
+  const { setNodeRef, isOver } = useDroppable({ id: status, data: { status } });
+  const { over } = useDndContext();
   return (
     <section
       ref={setNodeRef}
-      className={`board-column ${isOver ? "drop-target" : ""}`}
+      className={`board-column ${isOver || over?.data.current?.status === status ? "drop-target" : ""}`}
     >
       <h3>
         <span
@@ -308,9 +323,14 @@ function BoardColumn({
         {status}
         <span className="count">{tasks.length}</span>
       </h3>
-      {tasks.map((t) => (
-        <BoardCard key={t.id} task={t} onOpen={onOpen} />
-      ))}
+      <SortableContext
+        items={tasks.map((t) => t.id)}
+        strategy={verticalListSortingStrategy}
+      >
+        {tasks.map((t) => (
+          <BoardCard key={t.id} task={t} onOpen={onOpen} />
+        ))}
+      </SortableContext>
       {!tasks.length && (
         <div className="column-empty">Room for what’s next</div>
       )}
@@ -324,34 +344,66 @@ export function TaskBoard({
   tasks: Entity<Task>[];
   onOpen: (id: string) => void;
 }) {
-  const { save, notify } = useWorkspace();
+  const { workspace, mutate, notify, pending } = useWorkspace();
+  const visibleTasks = boardTasks(tasks);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
   );
   async function end(event: DragEndEvent) {
-    const status = event.over?.id;
-    if (!statuses.includes(status as Task["status"])) return;
-    const task = tasks.find((t) => t.id === event.active.id);
-    if (task && task.data.status !== status)
-      try {
-        await save(
-          "task",
-          { ...task.data, status: status as Task["status"] },
-          task,
-        );
-      } catch (e) {
-        notify(e instanceof Error ? e.message : "Move failed");
-      }
+    if (!event.over || event.active.id === event.over.id || pending) return;
+    const task = visibleTasks.find((t) => t.id === event.active.id);
+    const overTask = visibleTasks.find((t) => t.id === event.over!.id);
+    const status = overTask?.data.status ?? (event.over.id as Task["status"]);
+    if (!task || !statuses.includes(status)) return;
+    const all = sortBoardTasks(
+      boardTasks(recordsOf<Task>(workspace.records, "task")),
+    );
+    const destination = all.filter(
+      (t) => t.data.status === status && t.id !== task.id,
+    );
+    let index = destination.length;
+    if (overTask) {
+      index = destination.findIndex((t) => t.id === overTask.id);
+      const sameColumnDown =
+        task.data.status === status &&
+        all.indexOf(task) < all.indexOf(overTask);
+      if (
+        sameColumnDown ||
+        (task.data.status !== status &&
+          (event.active.rect.current.translated?.top ?? 0) >
+            event.over.rect.top + event.over.rect.height / 2)
+      )
+        index++;
+    }
+    destination.splice(index, 0, task);
+    try {
+      await mutate("board-move", {
+        id: task.id,
+        version: task.version,
+        status,
+        items: destination.map((t) => ({ id: t.id, version: t.version })),
+      });
+    } catch (e) {
+      notify(e instanceof Error ? e.message : "Move failed");
+    }
   }
   return (
-    <DndContext sensors={sensors} onDragEnd={end}>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCorners}
+      onDragEnd={end}
+    >
       <div className="board">
         {statuses.map((s) => (
           <BoardColumn
             key={s}
             status={s}
-            tasks={tasks.filter((t) => t.data.status === s)}
+            tasks={sortBoardTasks(
+              visibleTasks.filter((t) => t.data.status === s),
+            )}
             onOpen={onOpen}
           />
         ))}

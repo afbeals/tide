@@ -156,6 +156,37 @@ export const RichNotes: Story = {
     );
   },
 };
+function RestoredNotesExample() {
+  const [value, setValue] = useState("<p>  Keep  every space </p>");
+  return (
+    <div className="story-panel">
+      <RichText value={value} onChange={setValue} />
+      <button onClick={() => setValue("<p>Restore  this </p>")}>
+        Restore saved note
+      </button>
+      <output aria-label="Stored note">{value}</output>
+    </div>
+  );
+}
+export const NotesPreserveWhitespace: Story = {
+  render: () => <RestoredNotesExample />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const input = await canvas.findByRole("textbox", {
+      name: "Rich text notes",
+    });
+    await expect(input.textContent).toBe("  Keep  every space ");
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Restore saved note" }),
+    );
+    await expect(input.textContent).toBe("Restore  this ");
+    await userEvent.type(input, "after reconnecting");
+    await expect(input.textContent).toBe("Restore  this after reconnecting");
+    await expect(canvas.getByLabelText("Stored note").textContent).toBe(
+      "<p>Restore  this after reconnecting</p>",
+    );
+  },
+};
 export const ReadOnlyNotes: Story = {
   render: () => (
     <div className="story-panel">

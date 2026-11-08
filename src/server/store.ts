@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { boardTasks } from "../lib/board";
 import { db, serialize, assertWritable, HttpError, generation } from "./db";
 import {
   addDays,
@@ -349,6 +350,89 @@ export async function updateRecord(
         }
       }
       return asEntity((await tx.record.findUnique({ where: { id } }))!);
+    });
+  });
+}
+/** Reorder one complete destination column, including cards hidden by view filters. */
+export async function moveBoardTask(input: {
+  id: string;
+  version: number;
+  status: Task["status"];
+  items: { id: string; version: number }[];
+}) {
+  return serialize(async () => {
+    assertWritable();
+    const tasks = boardTasks(recordsOf<Task>(await entities(), "task"));
+    const moved = tasks.find((t) => t.id === input.id);
+    if (!moved) throw new HttpError(404, "Task is no longer on the board.");
+    const destination = tasks.filter(
+      (t) => t.data.status === input.status || t.id === input.id,
+    );
+    if (
+      new Set(input.items.map((t) => t.id)).size !== input.items.length ||
+      input.items.length !== destination.length ||
+      input.items.some((item) => !destination.some((t) => t.id === item.id))
+    )
+      throw new HttpError(
+        409,
+        "The column changed. Refresh and try the move again.",
+      );
+    if (
+      moved.version !== input.version ||
+      input.items.some(
+        (item) =>
+          destination.find((t) => t.id === item.id)!.version !== item.version,
+      )
+    )
+      throw new HttpError(
+        409,
+        "Another browser changed this column. Try the move again.",
+      );
+    return db().$transaction(async (tx) => {
+      for (const [position, item] of input.items.entries()) {
+        const task = destination.find((t) => t.id === item.id)!;
+        const data = { ...task.data, boardOrder: position };
+        if (task.id === input.id) {
+          data.status = input.status;
+          if (data.status !== task.data.status) {
+            data.completedAt =
+              data.status === "Done" ? new Date().toISOString() : "";
+            if (data.seriesId) {
+              data.outcome = data.status === "Done" ? "done" : null;
+              data.occurrenceOverrides = [
+                ...new Set([
+                  ...(data.occurrenceOverrides || []),
+                  "status",
+                  "completedAt",
+                  "outcome",
+                ]),
+              ];
+            }
+          }
+        }
+        if (JSON.stringify(data) === JSON.stringify(task.data)) continue;
+        const updated = await tx.record.updateMany({
+          where: { id: task.id, version: item.version },
+          data: {
+            data: data as unknown as Prisma.InputJsonObject,
+            version: { increment: 1 },
+          },
+        });
+        if (!updated.count)
+          throw new HttpError(409, "Another browser changed this column.");
+      }
+      await tx.activity.create({
+        data: {
+          id: randomUUID(),
+          recordId: input.id,
+          action: "updated",
+          detail:
+            moved.data.status === input.status
+              ? "Reordered on board"
+              : `${moved.data.status} → ${input.status}`,
+        },
+      });
+      return { ok: true };
     });
   });
 }

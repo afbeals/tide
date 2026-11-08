@@ -69,6 +69,7 @@ const recurrenceSchema = z
   });
 const taskSchema = z
   .object({
+    boardOrder: z.number().int().nonnegative().optional(),
     suspended: z.boolean().optional(),
     occurrenceOverrides: z.array(z.string()).optional(),
     title,
@@ -439,6 +440,24 @@ export function capacity(
       )
     : 0;
 }
+/** Repeating work belongs only to its planned day, never the future-work tray. */
+export function planningTasks(
+  tasks: Entity<Task>[],
+  personId: string,
+  day: string,
+) {
+  return tasks.filter(
+    ({ data: t }) =>
+      !t.deletedAt &&
+      !t.archived &&
+      !t.recurrence &&
+      !t.suspended &&
+      t.status !== "Done" &&
+      !t.outcome &&
+      (t.ownerId === personId || !t.ownerId) &&
+      (!t.seriesId || t.plannedDay === day),
+  );
+}
 export function workload(tasks: Entity<Task>[], records: Entity[] = []) {
   return tasks.reduce((sum, entity) => {
     const t = effectiveTask(entity.data, records, entity.id);
@@ -510,6 +529,7 @@ export function copyTask(task: Task, day: string): Task {
     deletedAt: "",
     archived: false,
     someday: false,
+    boardOrder: undefined,
     seriesId: null,
     recurrence: null,
     occurrenceDay: "",

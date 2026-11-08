@@ -20,6 +20,7 @@ import {
   snapshot,
   createRecord,
   updateRecord,
+  moveBoardTask,
   removeRecord,
   timerAction,
   bulk,
@@ -46,7 +47,7 @@ import {
   placeDetails,
 } from "@/server/providers";
 import { envelopeSchema, parseData, nextBackup } from "@/lib/domain";
-import type { Plan } from "@/lib/types";
+import { statuses, type Plan } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -252,6 +253,24 @@ async function processRequest(req: NextRequest, context: Context) {
       }
     }
     if (method === "POST") {
+      if (resource === "board-move")
+        return json(
+          await moveBoardTask(
+            z
+              .object({
+                id: z.string().min(1),
+                version: z.number().int(),
+                status: z.enum(statuses),
+                items: z
+                  .array(
+                    z.object({ id: z.string(), version: z.number().int() }),
+                  )
+                  .min(1)
+                  .max(10000),
+              })
+              .parse(body),
+          ),
+        );
       if (resource === "records") {
         const input = envelopeSchema.parse(body);
         return json(await createRecord(input.kind, input.data), 201);

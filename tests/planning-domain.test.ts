@@ -12,6 +12,7 @@ import {
   occurrenceData,
   occurrenceMatches,
   parseData,
+  planningTasks,
 } from "../src/lib/domain";
 import {
   defaultFilters,
@@ -275,5 +276,49 @@ describe("planning selection, validation and dates", () => {
       ),
     ).toBe("2026-10-31T10:00:00Z");
     expect(addDays("2028-02-28", 1)).toBe("2028-02-29");
+  });
+});
+
+describe("planning recurring work", () => {
+  it("includes only the selected day's instance without collapsing unrelated one-off tasks", () => {
+    const day = "2026-11-07";
+    const rows = [
+      entity("today", {
+        ownerId: "a",
+        seriesId: "series",
+        occurrenceDay: day,
+        plannedDay: day,
+      }),
+      entity("future", {
+        ownerId: "a",
+        seriesId: "series",
+        occurrenceDay: "2026-11-08",
+        plannedDay: "2026-11-08",
+      }),
+      entity("past", {
+        ownerId: "a",
+        seriesId: "series",
+        occurrenceDay: "2026-11-06",
+        plannedDay: "2026-11-06",
+      }),
+      entity("project", { ownerId: "a", plannedDay: "2026-11-09" }),
+      entity("unassigned", {}),
+      entity("other", { ownerId: "b", plannedDay: day }),
+      entity("finished", { ownerId: "a", status: "Done", plannedDay: day }),
+      entity("suspended", { ownerId: "a", suspended: true, plannedDay: day }),
+      entity("skipped", { ownerId: "a", outcome: "skipped", plannedDay: day }),
+      entity("archived", { archived: true }),
+      entity("deleted", { deletedAt: "2026-11-01" }),
+    ];
+    expect(planningTasks(rows, "a", day).map((t) => t.id)).toEqual([
+      "today",
+      "project",
+      "unassigned",
+    ]);
+    expect(planningTasks(rows, "a", "2026-11-08").map((t) => t.id)).toEqual([
+      "future",
+      "project",
+      "unassigned",
+    ]);
   });
 });

@@ -51,7 +51,7 @@ jobs:
   visual:
     # Reviewed baselines were generated on macOS with pinned Chromium/fonts.
     # Linux rendering needs its own explicitly reviewed platform baselines.
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4

@@ -285,3 +285,30 @@ export const TimelineTravelLight: Story = {
   ...TimelineTravelAndOpen,
   globals: { theme: "light" },
 };
+
+export const BoardKeyboardReorder: Story = {
+  args: { mode: "board" },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const handle = await canvas.findByRole("button", {
+      name: "Drag Prepare team presentation",
+    });
+    handle.focus();
+    await userEvent.keyboard(" {ArrowDown} ");
+    await waitFor(() =>
+      expect(exampleTask("presentation").data.boardOrder).toBeGreaterThan(0),
+    );
+    await expect(exampleTask("presentation").data.status).toBe("Open");
+  },
+};
+export const BoardCancelledReorder: Story = {
+  args: { mode: "board" },
+  play: async ({ canvasElement }) => {
+    const handle = await within(canvasElement).findByRole("button", {
+      name: "Drag Prepare team presentation",
+    });
+    handle.focus();
+    await userEvent.keyboard(" {ArrowDown}{Escape}");
+    await expect(exampleTask("presentation").data.boardOrder).toBeUndefined();
+  },
+};
