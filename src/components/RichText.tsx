@@ -22,6 +22,7 @@ export function RichText({
       }),
     ],
     content: value,
+    parseOptions: { preserveWhitespace: true },
     immediatelyRender: false,
     editable: !readOnly,
     onUpdate: ({ editor }) => onChange?.(editor.getHTML()),
@@ -41,7 +42,10 @@ export function RichText({
   });
   useEffect(() => {
     if (editor && editor.getHTML() !== value)
-      editor.commands.setContent(value, { emitUpdate: false });
+      editor.commands.setContent(value, {
+        emitUpdate: false,
+        parseOptions: { preserveWhitespace: true },
+      });
   }, [value, editor]);
   return (
     <div className={`rich-editor ${readOnly ? "read-only" : ""}`}>
