@@ -30,4 +30,6 @@ Run `npm run storybook` for the component catalog at http://localhost:6006. See 
 
 ## Hosting
 
+Run `npm run docker:release` after Docker Hub login to build the Linux amd64 image and push both the package version and `latest`. For a manual image smoke check, use the separate build/test/tag/push steps in the deployment guide.
+
 The production image is `afbeals/tide:<version>`. Mount `/mnt/user/appdata/tide/data` at `/app/data`; map port `8776:8776`. See [Unraid deployment](docs/deploy-unraid.md) and [backup/restore](docs/backup-restore.md). Provider keys are optional and unconfigured services have manual alternatives.

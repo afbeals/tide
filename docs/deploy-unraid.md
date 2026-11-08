@@ -2,11 +2,33 @@
 
 The Finapp-style workflow builds a complete versioned image locally, tests it, tags latest, then publishes deliberately. SQLite and files stay on the mounted Unraid volume.
 
-After merging the changes on GitHub, run these commands from the Windows checkout:
+## One-command release
 
-```powershell
+Start Docker Desktop (or another Docker daemon with Buildx) and log in using your Docker Hub account:
+
+```sh
+docker login --username afbeals
+```
+
+After merging the changes on GitHub, run these commands from the Tide checkout on Windows, macOS or Linux:
+
+```sh
 git switch main
 git pull --ff-only
+# Choose a fresh release version; commit package.json and package-lock.json afterward.
+npm version patch --no-git-tag-version
+npm run docker:release
+```
+
+`docker:release` builds `afbeals/tide:<package.json version>` for `linux/amd64`, tags the same image as `afbeals/tide:latest`, and pushes both tags in order. It stops on the first failure, including an interrupted Docker process. A failed final push can leave the version tag published while `latest` remains unchanged; rerun `npm run docker:push` after resolving the error.
+
+The shortcut does not bump the version, log in, run tests or update Unraid. It matches Finapp and Supper Club's build/tag/push shortcut. Keep Google credentials in the running production container.
+
+## Build and manually test before publishing
+
+Use these separate steps when you want to inspect the production image before publishing it:
+
+```powershell
 npm run docker:build
 npm run docker:test
 # verify running
@@ -16,7 +38,15 @@ npm run docker:tag
 npm run docker:push
 ```
 
+Open http://localhost:8776 while `docker:test` is running, then stop `tide-local` from another terminal (or press Ctrl+C). The test uses `./docker-data`, separate from the Unraid data folder. After testing, `docker:push` publishes the image you tested; `docker:release` starts a fresh build.
+
+## Update the existing Unraid container
+
+Create/download a full backup before upgrading. Keep the same host directory mapped to `/app/data`, and preserve the production environment variables.
+
 `docker:push` requires Docker Hub authentication and publishes both the versioned image and `afbeals/tide:latest`. On Unraid, select **Docker → Check for Updates → Update** for Tide after publishing. Scheduled update checks and notifications depend on the Unraid configuration. Keep the existing data-folder mapping when recreating the container.
+
+After updating, check `docker logs --tail=100 tide` and open `http://<unraid-ip>:8776/api/health`. The health response should contain `"ok": true` and `"maintenance": false`. An image update reuses the mounted database and files; even a failed startup normally leaves that directory intact. Backups remain necessary because migrations modify stored data.
 
 The build targets `linux/amd64` using Node 24 Debian slim. Native better-sqlite3 may compile from source. Build and publish without Google keys. Both keys are configured only in the running Unraid container. Local development disables Google; `docker:test` also explicitly disables live mode and clears Google keys, without loading local credentials. Automated tests and Storybook use mocks.
 
